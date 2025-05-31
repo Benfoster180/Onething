@@ -1,4 +1,16 @@
+import SwiftUI
 import Foundation
+
+// MARK: - Model
+
+struct DailyEntry: Codable, Identifiable {
+    var id: UUID = UUID()
+    let date: String
+    let question: String
+    let answer: String
+}
+
+// MARK: - Storage
 
 class EntryStorage {
     static let shared = EntryStorage()
@@ -11,11 +23,15 @@ class EntryStorage {
     }
 
     func loadEntries() -> [DailyEntry] {
-        guard let data = try? Data(contentsOf: fileURL) else {
+        do {
+            let data = try Data(contentsOf: fileURL)
+            let decoder = JSONDecoder()
+            let entries = try decoder.decode([DailyEntry].self, from: data)
+            return entries
+        } catch {
+            print("Error loading entries: \(error)")
             return []
         }
-        let decoder = JSONDecoder()
-        return (try? decoder.decode([DailyEntry].self, from: data)) ?? []
     }
 
     func saveEntries(_ entries: [DailyEntry]) throws {
@@ -25,3 +41,6 @@ class EntryStorage {
         try data.write(to: fileURL, options: [.atomicWrite])
     }
 }
+
+// MARK: - ContentView
+

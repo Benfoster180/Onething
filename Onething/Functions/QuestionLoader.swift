@@ -6,7 +6,7 @@ struct QuestionLoader {
         formatter.dateFormat = "dd-MM"
         let todayKey = formatter.string(from: Date())
 
-        if let url = Bundle.main.url(forResource: "daily_questions", withExtension: "json"),
+        if let url = Bundle.main.url(forResource: "questions", withExtension: "json"),
            let data = try? Data(contentsOf: url),
            let allQuestions = try? JSONDecoder().decode([String: String].self, from: data) {
             return allQuestions[todayKey] ?? "What's on your mind today?"
