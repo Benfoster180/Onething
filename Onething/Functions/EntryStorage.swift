@@ -3,11 +3,18 @@ import Foundation
 
 // MARK: - Model
 
-struct DailyEntry: Codable, Identifiable {
-    var id: UUID = UUID()
-    let date: String
+struct DailyEntry: Identifiable, Codable {
+    let id: UUID
+    let date: String   // Format: "dd-MM-yyyy"
     let question: String
     let answer: String
+    
+    init(id: UUID = UUID(), date: String, question: String, answer: String) {
+        self.id = id
+        self.date = date
+        self.question = question
+        self.answer = answer
+    }
 }
 
 // MARK: - Storage
@@ -29,7 +36,7 @@ class EntryStorage {
             let entries = try decoder.decode([DailyEntry].self, from: data)
             return entries
         } catch {
-            print("Error loading entries: \(error)")
+            print("Error loading entries: \(error.localizedDescription)")
             return []
         }
     }
@@ -41,6 +48,3 @@ class EntryStorage {
         try data.write(to: fileURL, options: [.atomicWrite])
     }
 }
-
-// MARK: - ContentView
-

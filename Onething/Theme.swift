@@ -7,16 +7,21 @@
 
 import SwiftUI
 
-// MARK: - Color Extension for theme colors
+// MARK: - Color Extension for native adaptive colors
 extension Color {
-    static let themePurple = Color(red: 204/255, green: 204/255, blue: 255/255)
+    // Custom themePurple color
+    static let themePurple = Color(red: 0.5, green: 0.2, blue: 0.7)
+
+    // Optional: Add semantic colors for reuse if you want
+    static let background = Color(UIColor.systemBackground)
+    static let foreground = Color.primary
 }
 
 // MARK: - View Modifier Extension for reusable style
 extension View {
-    func purpleBackgroundStyle() -> some View {
+    func nativeBackgroundStyle() -> some View {
         self
-            .background(Color.themePurple.ignoresSafeArea())
-            .foregroundColor(.black)
+            .background(Color.background.ignoresSafeArea())
+            .foregroundColor(Color.foreground)
     }
 }

@@ -8,29 +8,26 @@ struct CurrentQuestionView: View {
     @State private var showShareCard = false
 
     @State private var timeRemaining: TimeInterval = 0
-    @State private var timer: Timer? = nil
     @State private var answeredToday: Bool = false
+    @State private var showCountdownScreen: Bool = false // You probably want this true to show countdown?
 
-    @State private var showCountdownScreen: Bool = false // 👈 New toggle
+    // Timer should not be State because it doesn't trigger UI updates directly
+    private var debugDisableTimer: Bool = false
+    private var timerInterval: TimeInterval = 1
 
-    private let debugDisableTimer: Bool = false
+    @State private var timer: Timer? = nil
 
     var body: some View {
         ZStack {
-            Color.themePurple.ignoresSafeArea()
+            Color(UIColor.systemBackground)
+                .ignoresSafeArea()
 
             VStack(spacing: 20) {
-                ZStack {
-                    Text(question)
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(.black)
-                        .offset(x: 1, y: 1)
-                    Text(question)
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(.white)
-                }
-                .multilineTextAlignment(.center)
-                .padding()
+                Text(question)
+                    .font(.system(size: 28, weight: .bold))
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(Color.primary)
+                    .padding()
 
                 if !answeredToday || !showCountdownScreen {
                     TextField("Your answer...", text: $answer)
@@ -41,7 +38,7 @@ struct CurrentQuestionView: View {
                         saveAnswer()
                     }
                     .padding()
-                    .background(Color(red: 203/255, green: 195/255, blue: 227/255))
+                    .background(answer.isEmpty ? Color.gray : Color.accentColor)
                     .foregroundColor(.white)
                     .cornerRadius(8)
                     .disabled(answer.isEmpty)
@@ -49,10 +46,12 @@ struct CurrentQuestionView: View {
                     VStack {
                         Text("Next question in:")
                             .font(.headline)
+                            .foregroundColor(Color.primary)
                         Text(timeString(timeRemaining))
                             .font(.largeTitle)
                             .monospacedDigit()
                             .padding(.top, 4)
+                            .foregroundColor(Color.primary)
                     }
                 }
 
@@ -72,15 +71,17 @@ struct CurrentQuestionView: View {
                     Text("🎉 You answered today's question!")
                         .font(.headline)
                         .multilineTextAlignment(.center)
+                        .foregroundColor(Color.primary)
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Q: \(question)")
                         Text("A: \(answer)")
                     }
                     .padding()
-                    .background(Color.white)
+                    .background(Color(UIColor.secondarySystemBackground))
                     .cornerRadius(12)
                     .shadow(radius: 5)
+                    .foregroundColor(Color.primary)
 
                     ShareLink(
                         item: "Today's question: \(question)\nMy answer: \(answer)",
@@ -89,7 +90,7 @@ struct CurrentQuestionView: View {
                         Label("Share", systemImage: "square.and.arrow.up")
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background(Color.purple)
+                            .background(Color.accentColor)
                             .foregroundColor(.white)
                             .cornerRadius(8)
                     }
@@ -103,7 +104,7 @@ struct CurrentQuestionView: View {
                     .foregroundColor(.gray)
                 }
                 .padding()
-                .background(Color.white)
+                .background(Color(UIColor.systemBackground))
                 .cornerRadius(20)
                 .shadow(radius: 10)
                 .padding(40)
@@ -111,7 +112,6 @@ struct CurrentQuestionView: View {
                 .zIndex(1)
             }
         }
-        .animation(.easeInOut, value: showShareCard)
         .onAppear {
             entries = EntryStorage.shared.loadEntries()
             checkIfAnsweredToday()
@@ -184,18 +184,20 @@ struct CurrentQuestionView: View {
             timeRemaining = 0
         }
 
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            timeRemaining -= 1
+        timer = Timer.scheduledTimer(withTimeInterval: timerInterval, repeats: true) { _ in
+            DispatchQueue.main.async {  // IMPORTANT: Update UI on main thread
+                timeRemaining -= timerInterval
 
-            if timeRemaining <= 0 {
-                timeRemaining = 0
-                answeredToday = false
-                question = QuestionLoader.loadTodaysQuestion()
-                saveMessage = ""
-                showShareCard = false
-                answer = ""
-                timer?.invalidate()
-                timer = nil
+                if timeRemaining <= 0 {
+                    timeRemaining = 0
+                    answeredToday = false
+                    question = QuestionLoader.loadTodaysQuestion()
+                    saveMessage = ""
+                    showShareCard = false
+                    answer = ""
+                    timer?.invalidate()
+                    timer = nil
+                }
             }
         }
     }
@@ -208,9 +210,6 @@ struct CurrentQuestionView: View {
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
-
-struct CurrentQuestionView_Previews: PreviewProvider {
-    static var previews: some View {
-        CurrentQuestionView()
-    }
+#Preview {
+    CurrentQuestionView()
 }
