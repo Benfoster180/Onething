@@ -2,19 +2,22 @@ import SwiftUI
 
 struct CurrentQuestionView: View {
     @State private var answer: String = ""
-    @State private var question: String = QuestionLoader.loadTodaysQuestion() // questions use dd-MM keys (no year)
+    @State private var question: String = QuestionLoader.loadTodaysQuestion()
     @State private var saveMessage: String = ""
     @State private var entries: [DailyEntry] = []
     @State private var showShareCard = false
-    
+
     @State private var timeRemaining: TimeInterval = 0
     @State private var timer: Timer? = nil
     @State private var answeredToday: Bool = false
 
+    @State private var showCountdownScreen: Bool = false // 👈 New toggle
+
+    private let debugDisableTimer: Bool = false
+
     var body: some View {
         ZStack {
-            Color.themePurple
-                .ignoresSafeArea()
+            Color.themePurple.ignoresSafeArea()
 
             VStack(spacing: 20) {
                 ZStack {
@@ -29,7 +32,7 @@ struct CurrentQuestionView: View {
                 .multilineTextAlignment(.center)
                 .padding()
 
-                if !answeredToday {
+                if !answeredToday || !showCountdownScreen {
                     TextField("Your answer...", text: $answer)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .padding(.horizontal)
@@ -42,7 +45,7 @@ struct CurrentQuestionView: View {
                     .foregroundColor(.white)
                     .cornerRadius(8)
                     .disabled(answer.isEmpty)
-                } else {
+                } else if showCountdownScreen {
                     VStack {
                         Text("Next question in:")
                             .font(.headline)
@@ -64,7 +67,7 @@ struct CurrentQuestionView: View {
                 Color.black.opacity(0.3)
                     .ignoresSafeArea()
                     .transition(.opacity)
-                
+
                 VStack(spacing: 16) {
                     Text("🎉 You answered today's question!")
                         .font(.headline)
@@ -110,10 +113,11 @@ struct CurrentQuestionView: View {
         }
         .animation(.easeInOut, value: showShareCard)
         .onAppear {
-            entries = EntryStorage.shared.loadEntries()   // Reload entries fresh from storage
-            print("Loaded entries count: \(entries.count)")
+            entries = EntryStorage.shared.loadEntries()
             checkIfAnsweredToday()
-            setupTimer()
+            if showCountdownScreen && !debugDisableTimer {
+                setupTimer()
+            }
         }
         .onDisappear {
             timer?.invalidate()
@@ -123,10 +127,9 @@ struct CurrentQuestionView: View {
 
     func saveAnswer() {
         let formatter = DateFormatter()
-        formatter.dateFormat = "dd-MM-yyyy"  // full date with year for entries
+        formatter.dateFormat = "dd-MM-yyyy"
         let todayKey = formatter.string(from: Date())
 
-        // Remove old entry for today if any
         entries.removeAll { $0.date == todayKey }
 
         let newEntry = DailyEntry(date: todayKey, question: question, answer: answer)
@@ -135,14 +138,24 @@ struct CurrentQuestionView: View {
         do {
             try EntryStorage.shared.saveEntries(entries)
             saveMessage = "Answer saved successfully!"
-            answeredToday = true
-            
+
+            if showCountdownScreen {
+                answeredToday = true
+            }
+
             withAnimation {
                 showShareCard = true
             }
 
             answer = ""
-            setupTimer()
+
+            if showCountdownScreen {
+                setupTimer()
+            } else {
+                print("⏱ Timer skipped (countdown disabled)")
+                answeredToday = false
+            }
+
         } catch {
             saveMessage = "Failed to save answer: \(error.localizedDescription)"
         }
@@ -150,23 +163,16 @@ struct CurrentQuestionView: View {
 
     private func checkIfAnsweredToday() {
         let formatter = DateFormatter()
-        formatter.dateFormat = "dd-MM-yyyy" // full date with year
+        formatter.dateFormat = "dd-MM-yyyy"
         let todayKey = formatter.string(from: Date())
 
-        print("Checking if answered today: \(todayKey)")
-        print("Entries:")
-        for entry in entries {
-            print("- \(entry.date): answer='\(entry.answer)'")
-        }
-
-        // Only block if there is an entry for today with a non-empty answer
         answeredToday = entries.contains { $0.date == todayKey && !$0.answer.isEmpty }
 
-        if answeredToday {
+        if answeredToday && showCountdownScreen && !debugDisableTimer {
             setupTimer()
         }
     }
-    
+
     private func setupTimer() {
         timer?.invalidate()
 
@@ -187,13 +193,13 @@ struct CurrentQuestionView: View {
                 question = QuestionLoader.loadTodaysQuestion()
                 saveMessage = ""
                 showShareCard = false
-                answer = ""  // Clear answer so user can input again after midnight reset
+                answer = ""
                 timer?.invalidate()
                 timer = nil
             }
         }
     }
-    
+
     private func timeString(_ time: TimeInterval) -> String {
         let totalSeconds = max(Int(time), 0)
         let hours = totalSeconds / 3600
