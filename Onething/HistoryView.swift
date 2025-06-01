@@ -3,112 +3,134 @@ import SwiftUI
 struct HistoryView: View {
     let entries: [DailyEntry]
 
-    private var years: [Int] {
-        Set(entries.compactMap { Int($0.date.split(separator: "-").last ?? "") }).sorted()
+    // Extract valid years from entries
+    private var availableYears: [Int] {
+        Set(entries.compactMap { entry -> Int? in
+            let comps = entry.date.split(separator: "-")
+            if comps.count == 3, let year = Int(comps[2]) {
+                return year
+            }
+            return nil
+        }).sorted()
     }
 
-    private func months(for year: Int) -> [Int] {
+    // Extract valid months for a given year
+    private func availableMonths(for year: Int) -> [Int] {
         Set(entries.compactMap { entry -> Int? in
             let comps = entry.date.split(separator: "-")
             if comps.count == 3,
-               let month = Int(comps[1]),
                let entryYear = Int(comps[2]),
-               entryYear == year {
+               entryYear == year,
+               let month = Int(comps[1]) {
                 return month
             }
             return nil
         }).sorted()
     }
 
-    @State private var filterYear: Int? = nil
-    @State private var filterMonth: Int? = nil
+    @State private var selectedYear: Int? = nil
+    @State private var selectedMonth: Int? = nil
 
-    var filteredEntries: [DailyEntry] {
+    // Filter entries based on selected year and month
+    private var filteredEntries: [DailyEntry] {
         entries.filter { entry in
             let comps = entry.date.split(separator: "-")
             guard comps.count == 3 else { return false }
-
-            if let year = filterYear,
-               let entryYear = Int(comps[2]),
-               entryYear != year {
+            if let year = selectedYear, let entryYear = Int(comps[2]), entryYear != year {
                 return false
             }
-
-            if let month = filterMonth,
-               let entryMonth = Int(comps[1]),
-               entryMonth != month {
+            if let month = selectedMonth, let entryMonth = Int(comps[1]), entryMonth != month {
                 return false
             }
-
             return true
         }
     }
 
     var body: some View {
         NavigationView {
-            VStack {
-                // Filter controls
-                HStack(spacing: 12) {
-                    Picker("Year", selection: $filterYear) {
-                        Text("All").tag(Int?.none)
-                        ForEach(years, id: \.self) { year in
+            VStack(spacing: 20) {
+                // Year picker - centered
+                VStack(spacing: 4) {
+                    Text("Select Year")
+                        .font(.headline)
+                        .foregroundColor(.purple)
+                    Picker("Year", selection: $selectedYear) {
+                        Text("All Years").tag(Int?.none)
+                        ForEach(availableYears, id: \.self) { year in
                             Text(String(year)).tag(Int?.some(year))
                         }
                     }
-                    .pickerStyle(MenuPickerStyle())
-                    .frame(maxWidth: 100)
-                    .padding(8)
-                    .background(Color.purple.opacity(0.2))
-                    .cornerRadius(10)
+                    .pickerStyle(WheelPickerStyle())
+                    .frame(maxWidth: 200, maxHeight: 100)
+                    .clipped()
+                }
 
-                    if let year = filterYear {
-                        Picker("Month", selection: $filterMonth) {
-                            Text("All").tag(Int?.none)
-                            ForEach(months(for: year), id: \.self) { month in
+                // Month picker - only shows if year selected
+                if let year = selectedYear {
+                    VStack(spacing: 4) {
+                        Text("Select Month")
+                            .font(.headline)
+                            .foregroundColor(.purple)
+                        Picker("Month", selection: $selectedMonth) {
+                            Text("All Months").tag(Int?.none)
+                            ForEach(availableMonths(for: year), id: \.self) { month in
                                 Text(monthName(month)).tag(Int?.some(month))
                             }
                         }
-                        .pickerStyle(MenuPickerStyle())
-                        .frame(maxWidth: 140)
-                        .padding(8)
-                        .background(Color.purple.opacity(0.2))
-                        .cornerRadius(10)
+                        .pickerStyle(WheelPickerStyle())
+                        .frame(maxWidth: 200, maxHeight: 100)
+                        .clipped()
                     }
                 }
-                .padding(.horizontal)
 
-                // Card-style list
+                Divider()
+                    .padding(.vertical, 8)
+
+                // Entries list
                 ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(filteredEntries) { entry in
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(entry.question)
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.primary)
+                    LazyVStack(spacing: 20) {
+                        if filteredEntries.isEmpty {
+                            Text("No entries for selected filters.")
+                                .foregroundColor(.secondary)
+                                .italic()
+                                .padding()
+                        } else {
+                            ForEach(filteredEntries) { entry in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(entry.question)
+                                        .font(.title3)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
 
-                                Text(entry.answer)
-                                    .font(.body)
-                                    .foregroundColor(.primary.opacity(0.85))
+                                    Text(entry.answer)
+                                        .font(.body)
+                                        .foregroundColor(.primary.opacity(0.8))
 
-                                HStack {
-                                    Spacer()
-                                    Text(entry.date)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                    HStack {
+                                        Spacer()
+                                        Text(entry.date)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
+                                .padding()
+                                .background(Color(UIColor.secondarySystemBackground))
+                                .cornerRadius(18)
+                                .shadow(color: Color.black.opacity(0.07), radius: 6, x: 0, y: 3)
+                                .padding(.horizontal)
                             }
-                            .padding()
-                            .background(Color(UIColor.secondarySystemBackground))
-                            .cornerRadius(16)
-                            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
-                            .padding(.horizontal)
                         }
                     }
-                    .padding(.top)
+                    .padding(.bottom, 24)
                 }
             }
             .navigationTitle("History")
+            .navigationBarTitleDisplayMode(.inline)
+            .padding(.top)
+            .onChange(of: selectedYear) { _ in
+                // Reset month when year changes
+                selectedMonth = nil
+            }
         }
     }
 

@@ -9,12 +9,22 @@ final class MilestoneCardGenerator {
         let image = renderer.image { context in
             let ctx = context.cgContext
             
-            // MARK: - Background Gradient (rich purple-blue)
-            let gradientColors = [
-                UIColor(red: 102/255, green: 51/255, blue: 153/255, alpha: 1).cgColor,  // Deep purple
-                UIColor(red: 0/255, green: 122/255, blue: 255/255, alpha: 1).cgColor    // iOS blue
-            ] as CFArray
+            // MARK: - Background Gradient (dynamic colors)
+            let userInterfaceStyle = UITraitCollection.current.userInterfaceStyle
             
+            // Use dynamic colors for gradient stops
+            let topColor: UIColor
+            let bottomColor: UIColor
+            
+            if userInterfaceStyle == .dark {
+                topColor = UIColor(red: 15/255, green: 30/255, blue: 70/255, alpha: 1)  // Dark blue
+                bottomColor = UIColor(red: 5/255, green: 10/255, blue: 40/255, alpha: 1)  // Darker blue
+            } else {
+                topColor = UIColor(red: 102/255, green: 51/255, blue: 153/255, alpha: 1)  // Light purple
+                bottomColor = UIColor(red: 0/255, green: 122/255, blue: 255/255, alpha: 1) // iOS blue
+            }
+            
+            let gradientColors = [topColor.cgColor, bottomColor.cgColor] as CFArray
             let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
                                       colors: gradientColors,
                                       locations: [0.0, 1.0])!
@@ -30,7 +40,7 @@ final class MilestoneCardGenerator {
             
             ctx.saveGState()
             ctx.setShadow(offset: CGSize(width: 0, height: 18), blur: 28, color: UIColor.black.withAlphaComponent(0.18).cgColor)
-            UIColor.white.setFill()
+            UIColor.systemBackground.setFill()  // Dynamic background color for light/dark mode
             cardPath.fill()
             ctx.restoreGState()
             
@@ -47,13 +57,13 @@ final class MilestoneCardGenerator {
             // Text Attributes
             let questionAttributes: [NSAttributedString.Key: Any] = [
                 .font: questionFont,
-                .foregroundColor: UIColor.label,
+                .foregroundColor: UIColor.label, // dynamic label color
                 .paragraphStyle: paragraphStyle
             ]
             
             let answerAttributes: [NSAttributedString.Key: Any] = [
                 .font: answerFont,
-                .foregroundColor: UIColor.darkGray,
+                .foregroundColor: UIColor.secondaryLabel, // dynamic secondary label color
                 .paragraphStyle: paragraphStyle
             ]
             
